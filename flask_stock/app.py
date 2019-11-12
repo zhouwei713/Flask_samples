@@ -5,7 +5,10 @@
 @File: app.py
 """
 
-from flask import Flask, render_template, request
+from flask import Flask, render_template, request, abort, session, redirect, url_for
+from flask_wtf import FlaskForm
+from wtforms import StringField, PasswordField, SubmitField
+from wtforms.validators import DataRequired
 from pyecharts import options as opts
 from pyecharts.charts import Kline
 import tushare as ts
@@ -14,6 +17,36 @@ from flask_bootstrap import Bootstrap
 
 app = Flask(__name__)
 bootstrap = Bootstrap(app)
+app.secret_key = 'A Hard String'
+
+
+class LoginForm(FlaskForm):
+    name = StringField('name', validators=[DataRequired()])
+    password = PasswordField('password', validators=[DataRequired()])
+    submit = SubmitField('Submit')
+
+
+def check_name(name, password):
+    return True
+
+
+@app.route('/login/', methods=['GET', 'POST'])
+def login():
+    form = LoginForm()
+    if form.validate_on_submit():
+        name = form.name.data
+        password = form.password.data
+        if check_name(name, password):
+            session['login_user'] = 'admin'
+            return redirect(url_for('index'))
+    return render_template('login.html', form=form)
+
+
+@app.route('/logout/')
+def logout():
+    if 'login_user' in session:
+        session.pop('login_user')
+    return redirect(url_for('index'))
 
 
 @app.errorhandler(404)
@@ -51,7 +84,10 @@ def kline_base(mydate, data, name) -> Kline:
 
 @app.route("/")
 def index():
-    return render_template("index.html")
+    auth = False
+    if 'login_user' in session:
+        auth = True
+    return render_template("index.html", auth=auth)
 
 
 def check_stock(code):
@@ -73,6 +109,11 @@ def check_stock(code):
 def get_kline_chart():
     stock_name = request.form.get('stockName')
     query_time = request.form.get('queryTime')
+    if int(query_time) > 30:
+        if 'login_user' in session:
+            pass
+        else:
+            abort(403)
     if not stock_name:
         stock_name = '平安银行'
     if not query_time:

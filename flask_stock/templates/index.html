@@ -42,8 +42,13 @@
                 success: function (result) {
                     chart.setOption(result);
                 },
-                error: function() {
-                    alert("错误的股票代码！");
+                error: function(err) {
+                    if (err.status === 403) {
+                        alert("请先登陆系统！");
+                    }
+                    else {
+                        alert("错误的股票代码！");
+                    }
                 }
             });
         }
